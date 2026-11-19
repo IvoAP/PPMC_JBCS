@@ -3,7 +3,8 @@
 Research infrastructure for the **Diabetes 130-US Hospitals for Years
 1999-2008** dataset. The preprocessing stage builds patient-disjoint partitions
 for predicting readmission within 30 days. The anonymization stage exports
-empirical PerturbPCA-alpha comparisons. Other research stages remain placeholders.
+empirical PerturbPCA-alpha comparisons. Classification, feature selection and
+grouped SHAP experiments consume these aligned representations.
 
 ## Install and run
 
@@ -18,7 +19,9 @@ python -m pip install -r requirements.txt
 python main.py --experiment preprocessing
 # Replace the placeholder with the ID printed by preprocessing.
 python main.py --experiment anonymization --source-run "run_<32 hex digits>" --clusters 3
-python main.py --experiment classification
+python main.py --experiment classification --variants-run "run_<anonymization ID>"
+python main.py --experiment feature_selection --variants-run "run_<anonymization ID>"
+python main.py --experiment shap_analysis --models-run "run_<classification ID>"
 python main.py --experiment all
 ```
 
@@ -98,6 +101,39 @@ identity control. Alpha is **not** a privacy budget: no epsilon, delta or
 formal differential privacy guarantee is asserted.
 
 ## Configuration and reproducibility
+
+### Predictive comparisons
+
+Classification fits logistic regression, random forest and MLP on training
+encounters only. No threshold tuning, test-driven selection or internal
+row-level early-stopping split is used. Validation and test metrics, including
+trapezoidal PR-AUC and separate average precision, are saved in
+`results/tables/<run_id>/classification/evaluation.json`. Undefined AUCs are
+null. Scenario A is original-to-original, B is transformed-to-transformed,
+and C is only run for verified alpha-zero identity controls. Other C cases
+are recorded as skipped, even when matrix widths match. Per-encounter
+probabilities, predictions, fitted models, settings and row mappings are
+under `results/models/<run_id>/`. Keep these artifacts private.
+
+Feature selection ranks each representation on training data alone and does
+not modify classification inputs. Source-group scores sum univariate mutual
+information or forest impurity importances across encoded columns; sums are
+not joint MI and can favor larger groups. For nonidentity transformations,
+these are groups of reconstructed coordinates, not direct clinical effects.
+Outputs and paired comparisons are in `results/tables/<run_id>/feature_selection/`.
+
+SHAP estimates grouped interventional Shapley values by sampling permutations
+and averaging over a fixed training background. The explained quantity is the
+probability of `<30` readmission. Each clinical source is one player, including
+its complete one-hot block. For anonymized models, masking occurs **before**
+the frozen anonymizer; the explained function is the predictor composed with
+that anonymizer. Feature names therefore denote original inputs, not PCA
+components. All variants use identical background and test encounter indices
+and permutations. Interventional masking is not a causal explanation and
+can combine correlated variables unrealistically. `results/explanations/<run_id>/shap_analysis/`
+contains the sample indices, per-row contributions and baselines, sample-based
+global means, and paired importance differences and ranking comparisons.
+Correlations are null for constant rankings; top-k ties break by source name.
 
 Edit the typed dataclasses in [config.py](./config.py). `StudyConfig` groups
 paths, dataset column roles and split proportions, seed, and settings for each

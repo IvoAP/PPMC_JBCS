@@ -93,30 +93,54 @@ class Anonymization:
 class Classification:
     """Candidate predictive models."""
 
-    models: tuple[str, ...] = ("logistic_regression", "random_forest")
+    models: tuple[str, ...] = ("logistic_regression", "random_forest", "mlp")
+    logistic_c: float = 1.0
+    logistic_iterations: int = 300
+    forest_trees: int = 100
+    forest_min_leaf: int = 5
+    mlp_hidden: tuple[int, ...] = (32,)
+    mlp_iterations: int = 100
 
 
 @dataclass(frozen=True)
 class FeatureSelection:
     """Size of the feature subset to compare."""
 
-    top_k: int = 10
+    top_k: int = 5
+    mi_neighbors: int = 3
 
 
 @dataclass(frozen=True)
 class Shap:
     """Sampling budgets for future SHAP analysis."""
 
-    background_size: int = 100
-    explanation_size: int = 100
+    background_size: int = 16
+    explanation_size: int = 32
+    permutations: int = 16
 
 
 @dataclass(frozen=True)
 class Llm:
-    """Model selection only; credentials do not belong in configuration."""
+    """Opt-in explanation study; no credentials or credential URLs are stored."""
 
     model: str | None = None
     temperature: float = 0.0
+    max_tokens: int = 256
+    repeats: int = 3
+    examples: int = 2
+    top_features: int = 3
+    shap_run: str | None = None
+    local: bool = False
+    bert_model: str | None = None
+    bert_layers: int = 12
+    embedding_model: str | None = None
+    judge_model: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.repeats < 2 or min(self.examples, self.top_features, self.max_tokens) < 1:
+            raise ValueError("Use at least two repeats and positive LLM study budgets.")
+        if self.model and self.model == self.judge_model:
+            raise ValueError("The automated judge must be distinct from the generator.")
 
 
 @dataclass(frozen=True)
@@ -141,6 +165,8 @@ class StudyConfig:
 
     paths: Paths = field(default_factory=Paths)
     seed: int = 42
+    variants_run: str | None = None
+    models_run: str | None = None
     dataset: Dataset = field(default_factory=Dataset)
     preprocessing: Preprocessing = field(default_factory=Preprocessing)
     anonymization: Anonymization = field(default_factory=Anonymization)

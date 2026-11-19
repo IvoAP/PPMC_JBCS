@@ -77,6 +77,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--experiment", required=True, choices=(*STAGES, "all"))
     parser.add_argument("--source-run", help="Preprocessing run ID for standalone anonymization.")
+    parser.add_argument("--variants-run", help="Anonymization run for classification or ranking.")
+    parser.add_argument("--models-run", help="Classification run for standalone SHAP analysis.")
     parser.add_argument("--clusters", type=int, help="Also evaluate clustered mode with this k.")
     parser.add_argument("--prediction-time", choices=("admission", "discharge"),
                         default=Preprocessing().prediction_time)
@@ -85,11 +87,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if (args.experiment == "anonymization") != (args.source_run is not None):
         parser.error("--source-run is required and only used for standalone anonymization.")
+    if (args.experiment in ("classification", "feature_selection")) != bool(args.variants_run):
+        parser.error("--variants-run is required only for classification and feature_selection.")
+    if (args.experiment == "shap_analysis") != bool(args.models_run):
+        parser.error("--models-run is required only for standalone shap_analysis.")
     try:
         run(args.experiment, StudyConfig(
             paths=Paths(args.workspace.resolve()),
             preprocessing=Preprocessing(prediction_time=args.prediction_time),
             anonymization=Anonymization(source_run=args.source_run, clusters=args.clusters),
+            variants_run=args.variants_run, models_run=args.models_run,
         ))
     except (OSError, ValueError) as error:
         logging.error("Unable to run %s: %s", args.experiment, error)
