@@ -2,8 +2,8 @@
 
 Research infrastructure for the **Diabetes 130-US Hospitals for Years
 1999-2008** dataset. The preprocessing stage builds patient-disjoint partitions
-for predicting readmission within 30 days. Other stages remain placeholders.
-No anonymization or model training is performed.
+for predicting readmission within 30 days. The anonymization stage exports
+empirical PerturbPCA-alpha comparisons. Other research stages remain placeholders.
 
 ## Install and run
 
@@ -16,7 +16,8 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 # Place the original diabetic_data.csv in data\raw before running preprocessing.
 python main.py --experiment preprocessing
-python main.py --experiment anonymization
+# Replace the placeholder with the ID printed by preprocessing.
+python main.py --experiment anonymization --source-run "run_<32 hex digits>" --clusters 3
 python main.py --experiment classification
 python main.py --experiment all
 ```
@@ -60,6 +61,42 @@ Artifacts share the run ID printed by the CLI:
 Keep row-level artifacts in a protected workspace; encoding is not
 anonymization. Load joblib files only from trusted sources.
 
+## PerturbPCA-alpha integration
+
+Standalone anonymization requires `--source-run` so it never guesses which
+split or prediction-time policy to use. `--experiment all` consumes the
+preprocessing artifacts generated in the same run. Both export the original
+comparator and global transformations at alpha 0, 0.25, 0.50, 0.75 and 1.
+Pass `--clusters K` to additionally evaluate each alpha with KMeans; `3`
+above is an example, not a recommended clinical parameter.
+
+The author integration point is in [perturbpca.py](./anonymization/perturbpca.py).
+The supplied calculations are already wired in: `_fit_basis` stores the
+training mean, sorted eigenvectors and interpolated reconstruction basis;
+`_apply_basis` applies the original projection and reconstruction. To insert
+the canonical implementation, put its fit-only and apply-only operations at
+these hooks. Do not call a whole-dataset fitting routine on a holdout.
+Clustered mode uses frozen training centroids to route new rows and scatters
+results back into input order (instead of reordering labels by cluster).
+A cluster with fewer than two training rows fails rather than falling back.
+
+`results/anonymized/<run_id>/` contains `original/`, `global/alpha_025/`,
+etc., and optionally `clustered/alpha_025/`, etc. Each variant contains
+three dense encoded `.npy` feature matrices, runtime and parameter metadata,
+and per-partition reconstruction diagnostics. Metadata references the
+original immutable-in-use schema, targets, and encounter mappings: retain the
+source preprocessing run. The private `.joblib` object contains exact fitted
+parameters and may contain training-derived information. Do not release it,
+identifiers, or the original comparator as anonymized data.
+
+No categorical repair is part of the supplied method. Diagnostics report
+one-hot violations (with a tolerance for floating-point error), accepting an
+all-zero block only where the input block represented an unknown category.
+Nonzero-alpha outputs can be continuous embeddings rather than valid clinical
+categories; do not decode them as patient records. Alpha zero is a numerical
+identity control. Alpha is **not** a privacy budget: no epsilon, delta or
+formal differential privacy guarantee is asserted.
+
 ## Configuration and reproducibility
 
 Edit the typed dataclasses in [config.py](./config.py). `StudyConfig` groups
@@ -88,7 +125,7 @@ guarantee identical results across hardware, library versions, or kernels.
 | --- | --- |
 | `main.py`, `config.py` | CLI, ordered stage registry, and study settings |
 | `experiments/` | Shared stage contract and independently selectable research stages |
-| `anonymization/` | Anonymizer protocol, PerturbPCA placeholder, pipeline adapter |
+| `anonymization/` | Abstract method contract, PerturbPCA-alpha and its experiment adapter |
 | `models/`, `llm/` | Extension points for models, prompts, clients, and explanation evaluation |
 | `visualization/` | Plotting and report generation extension points |
 | `utils/` | Logging, RNG setup, JSON/CSV and manifest helpers, future metrics |

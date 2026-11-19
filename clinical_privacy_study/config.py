@@ -73,11 +73,20 @@ class Preprocessing:
 
 @dataclass(frozen=True)
 class Anonymization:
-    """Proposed perturbation settings, not a privacy guarantee."""
+    """Matched alpha sweep; clustered evaluation requires an explicit k."""
 
-    method: str = "perturbpca"
-    retained_variance: float = 0.95
-    noise_scale: float = 0.1
+    alphas: tuple[float, ...] = (0.0, 0.25, 0.50, 0.75, 1.0)
+    clusters: int | None = None
+    source_run: str | None = None
+    categorical_tolerance: float = 1e-8
+
+    def __post_init__(self) -> None:
+        if self.clusters is not None and self.clusters < 2:
+            raise ValueError("Cluster count must be at least two.")
+        if not self.alphas or any(not 0 <= a <= 1 for a in self.alphas):
+            raise ValueError("Select alpha values in [0, 1].")
+        if not 0 <= self.categorical_tolerance < 0.5:
+            raise ValueError("Categorical tolerance must be in [0, 0.5).")
 
 
 @dataclass(frozen=True)

@@ -14,7 +14,7 @@ class ExecutionTests(unittest.TestCase):
         with TemporaryDirectory() as workspace:
             config = StudyConfig(paths=Paths(Path(workspace)))
             runs = set()
-            placeholders = STAGES.keys() - {"preprocessing"}
+            placeholders = STAGES.keys() - {"preprocessing", "anonymization"}
             for name in placeholders:
                 with self.subTest(stage=name):
                     directory = run(name, config)

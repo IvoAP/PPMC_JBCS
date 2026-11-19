@@ -6,6 +6,9 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import numpy as np
+from scipy.sparse import load_npz
+
 from main import PIPELINE
 from utils.file_manager import load_metadata, save_csv
 
@@ -34,10 +37,16 @@ class ReportingTests(unittest.TestCase):
             manifest = load_metadata(directory)
             expected = [(stage.name, "not_implemented") for stage in PIPELINE]
             expected[0] = ("preprocessing", "completed")
+            expected[1] = ("anonymization", "completed")
             outcomes = manifest["stages"]
             assert isinstance(outcomes, dict)
             self.assertEqual(list(outcomes.items()), expected)
             report = root / "results" / "tables" / directory.name / "data_quality_report.json"
             self.assertTrue(report.is_file())
+            output = root / "results" / "anonymized" / directory.name
+            for part in ("train", "validation", "test"):
+                source = root / "data" / "processed" / directory.name / f"{part}_features.npz"
+                actual = np.load(output / "global" / "alpha_000" / f"{part}_features.npy")
+                np.testing.assert_allclose(actual, load_npz(source).toarray(), atol=1e-12)
             for name in ("figures", "models", "explanations"):
                 self.assertEqual(list((root / "results" / name).iterdir()), [])

@@ -11,7 +11,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from anonymization import anonymization_adapter
-from config import Paths, Preprocessing, StudyConfig
+from config import Anonymization, Paths, Preprocessing, StudyConfig
 from experiments import (
     classification,
     feature_selection,
@@ -76,15 +76,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Parse CLI arguments and report configuration or filesystem errors."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--experiment", required=True, choices=(*STAGES, "all"))
+    parser.add_argument("--source-run", help="Preprocessing run ID for standalone anonymization.")
+    parser.add_argument("--clusters", type=int, help="Also evaluate clustered mode with this k.")
     parser.add_argument("--prediction-time", choices=("admission", "discharge"),
                         default=Preprocessing().prediction_time)
     parser.add_argument("--workspace", type=Path, default=Paths().root,
                         help="Base directory for data and results.")
     args = parser.parse_args(argv)
+    if (args.experiment == "anonymization") != (args.source_run is not None):
+        parser.error("--source-run is required and only used for standalone anonymization.")
     try:
         run(args.experiment, StudyConfig(
             paths=Paths(args.workspace.resolve()),
             preprocessing=Preprocessing(prediction_time=args.prediction_time),
+            anonymization=Anonymization(source_run=args.source_run, clusters=args.clusters),
         ))
     except (OSError, ValueError) as error:
         logging.error("Unable to run %s: %s", args.experiment, error)

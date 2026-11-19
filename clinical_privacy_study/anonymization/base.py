@@ -1,17 +1,26 @@
-"""Contract for train-fitted tabular anonymizers."""
+"""Contract for train-fitted, row-order-preserving empirical transformations."""
 
-from typing import Protocol, TypeVar
+from abc import ABC, abstractmethod
 
-Table = TypeVar("Table")
+import numpy as np
 
 
-class Anonymizer(Protocol[Table]):
-    """Fit on training features and transform without refitting."""
+class AnonymizationMethod(ABC):
+    """Operate only on finite, encoded feature matrices, never labels or IDs."""
 
-    def fit(self, training_features: Table) -> None:
-        """Learn transformation parameters from training data only."""
-        ...
+    @abstractmethod
+    def fit(self, training_features: np.ndarray) -> None:
+        """Learn all data-dependent parameters from training features."""
 
-    def transform(self, features: Table) -> Table:
-        """Apply previously fitted parameters to a feature table."""
-        ...
+    @abstractmethod
+    def transform(self, features: np.ndarray) -> np.ndarray:
+        """Return the same shape, column order and encounter order without fitting."""
+
+    def fit_transform(self, training_features: np.ndarray) -> np.ndarray:
+        """Fit once and apply the fitted method to the training set."""
+        self.fit(training_features)
+        return self.transform(training_features)
+
+    @abstractmethod
+    def get_metadata(self) -> dict[str, object]:
+        """Describe the method and parameters needed to interpret this run."""
