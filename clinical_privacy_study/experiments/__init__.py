@@ -1,0 +1,1 @@
+"""Independently selectable research stages."""
