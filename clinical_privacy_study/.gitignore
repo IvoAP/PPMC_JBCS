@@ -1,6 +1,0 @@
-data/*/*
-results/*/*
-!data/*/.gitkeep
-!results/*/.gitkeep
-.env
-.env.*

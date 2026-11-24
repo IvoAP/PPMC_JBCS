@@ -1,0 +1,26 @@
+[project]
+name = "ppmc-jbcs"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Ivo Aguiar Pimenta", email = "ivoaguiarpimenta@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "kagglehub>=1.0.3",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.5",
+    "optuna>=5.1.0",
+    "pandas>=3.1.1",
+    "scikit-learn>=1.9.1",
+    "scipy>=1.18.1",
+    "shap>=0.54.1",
+]
+
+[project.scripts]
+ppmc-jbcs = "ppmc_jbcs.main:main"
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"

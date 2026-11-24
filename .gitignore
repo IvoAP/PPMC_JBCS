@@ -221,3 +221,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Generated analysis figures
+figures/
+
+# Generated classifier tables
+tables/
